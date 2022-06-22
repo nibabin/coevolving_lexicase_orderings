@@ -11,7 +11,8 @@
             [propeller.push.instructions.numeric]
             [propeller.push.instructions.polymorphic]
             [propeller.push.instructions.string]
-            [propeller.push.instructions.vector]))
+            [propeller.push.instructions.vector]
+            [propeller.weighted_lexicase :as weighted_lexicase]))
 
 (defn report
   "Reports information each generation."
@@ -27,7 +28,7 @@
                             :behavioral-diversity  (float (/ (count (distinct (map :behaviors pop))) (count pop)))
                             :average-genome-length (float (/ (reduce + (map count (map :plushy pop))) (count pop)))
                             :average-total-error   (float (/ (reduce + (map :total-error pop)) (count pop)))})
-    (println)))
+    ))
 
 (defn gp
   "Main GP loop."
@@ -45,12 +46,23 @@
   (loop [generation 0
          population (mapper
                       (fn [_] {:plushy (genome/make-random-plushy instructions max-initial-plushy-size)})
-                      (range population-size))]
+                      (range population-size))
+         orderings_population (mapper
+                                (fn [_] {:ordering (shuffle (range (count (:training-data argmap))))
+                                         :bias 0})
+                                (range population-size))]
+
+    ;(clojure.pprint/pprint  (pr-str orderings_population))
+    ;(clojure.pprint/pprint  (str orderings_population))
+    ;(clojure.pprint/pprint  (type orderings_population))
+    ;(clojure.pprint/pprint  "hello")(flush)
+    ;(println)
     (let [evaluated-pop (sort-by :total-error
-                                 (mapper
+                                 (map
                                    (partial error-function argmap (:training-data argmap))
                                    population))
           best-individual (first evaluated-pop)]
+
       (if (:custom-report argmap)
         ((:custom-report argmap) evaluated-pop generation argmap)
         (report evaluated-pop generation argmap))
@@ -67,10 +79,15 @@
         (>= generation max-generations)
         nil
         ;;
-        :else (recur (inc generation)
-                     (if (:elitism argmap)
-                       (conj (repeatedly (dec population-size)
-                                         #(variation/new-individual evaluated-pop argmap))
-                             (first evaluated-pop))
-                       (repeatedly population-size
-                                   #(variation/new-individual evaluated-pop argmap))))))))
+        :else
+               (let [new-pop-with-bias (propeller.utils/not-lazy (mapper #(propeller.weighted_lexicase/new-individual
+                                                                          (:ordering %)
+                                                                          evaluated-pop
+                                                                          argmap)
+                                                                      orderings_population))]
+                 ;(clojure.pprint/pprint (type new-pop-with-bias))
+                 ;(clojure.pprint/pprint {:orderings orderings_population})
+                 ;(println)
+                 (recur (inc generation)
+                       (map (fn [ind] {:plushy (:plushy ind)}) new-pop-with-bias)
+                       (weighted_lexicase/evolve_orderings new-pop-with-bias argmap)))))))
