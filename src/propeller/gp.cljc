@@ -19,16 +19,16 @@
   [pop generation argmap]
   (let [best (first pop)]
     (clojure.pprint/pprint {:generation            generation
-                            :best-plushy           (:plushy best)
-                            :best-program          (genome/plushy->push (:plushy best) argmap)
+                            ;:best-plushy           (:plushy best)
+                            ;:best-program          (genome/plushy->push (:plushy best) argmap)
                             :best-total-error      (:total-error best)
-                            :best-errors           (:errors best)
-                            :best-behaviors        (:behaviors best)
+                            ;:best-errors           (:errors best)
+                            ;:best-behaviors        (:behaviors best)
                             :genotypic-diversity   (float (/ (count (distinct (map :plushy pop))) (count pop)))
                             :behavioral-diversity  (float (/ (count (distinct (map :behaviors pop))) (count pop)))
                             :average-genome-length (float (/ (reduce + (map count (map :plushy pop))) (count pop)))
-                            :average-total-error   (float (/ (reduce + (map :total-error pop)) (count pop)))})
-    ))
+                            ;:average-total-error   (float (/ (reduce + (map :total-error pop)) (count pop)))
+                            })))
 
 (defn gp
   "Main GP loop."
@@ -44,10 +44,10 @@
   (println)
   ;;
   (loop [generation 0
-         population (mapper
+         population (pmap
                       (fn [_] {:plushy (genome/make-random-plushy instructions max-initial-plushy-size)})
                       (range population-size))
-         orderings_population (mapper
+         orderings_population (pmap
                                 (fn [_] {:ordering (shuffle (range (count (:training-data argmap))))
                                          :bias 0})
                                 (range population-size))]
@@ -58,14 +58,11 @@
     ;(clojure.pprint/pprint  "hello")(flush)
     ;(println)
     (let [evaluated-pop (sort-by :total-error
-                                 (map
+                                 (pmap
                                    (partial error-function argmap (:training-data argmap))
                                    population))
           best-individual (first evaluated-pop)]
-
-      (if (:custom-report argmap)
-        ((:custom-report argmap) evaluated-pop generation argmap)
-        (report evaluated-pop generation argmap))
+      (report evaluated-pop generation argmap)
       (cond
         ;; Success on training cases is verified on testing cases
         (<= (:total-error best-individual) solution-error-threshold)
@@ -80,14 +77,14 @@
         nil
         ;;
         :else
-               (let [new-pop-with-bias (propeller.utils/not-lazy (mapper #(propeller.weighted_lexicase/new-individual
+               (let [new-pop-with-bias (map #(propeller.weighted_lexicase/new-individual
                                                                           (:ordering %)
                                                                           evaluated-pop
                                                                           argmap)
-                                                                      orderings_population))]
-                 ;(clojure.pprint/pprint (type new-pop-with-bias))
-                 ;(clojure.pprint/pprint {:orderings orderings_population})
-                 ;(println)
+                                                                      orderings_population)]
+                 (clojure.pprint/pprint "Average number of tests considered:") (println)
+                 (clojure.pprint/pprint (float (/ (apply + (map :bias new-pop-with-bias)) population-size)))
+                 (println)
                  (recur (inc generation)
                        (map (fn [ind] {:plushy (:plushy ind)}) new-pop-with-bias)
                        (weighted_lexicase/evolve_orderings new-pop-with-bias argmap)))))))

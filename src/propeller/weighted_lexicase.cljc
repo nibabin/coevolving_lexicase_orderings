@@ -1,10 +1,11 @@
 (ns propeller.weighted_lexicase
-  (:require [propeller.variation :as variation]))
+  (:require [propeller.variation :as variation]
+            [clojure.pprint]))
 
 (defn mutate-ordering
-  [ordering]
+  [ordering rate]
   (reduce (fn [i1 i2]
-            (if (< (rand) 0.25)
+            (if (< (rand) rate)
               (let [x (last i1)]
                 (concat (butlast i1) (list i2 x)))
               (concat i1 (list i2))))
@@ -18,22 +19,25 @@
 
 (defn evolve_orderings
   [pop argmap]
-  (repeatedly (count pop)
-              #(mutate-ordering (:ordering (select-ordering pop argmap)))))
+  (pmap
+  (fn [_] (let [ordering_with_bias (select-ordering pop argmap)]
+            {:ordering (mutate-ordering (:ordering ordering_with_bias) (:ordering-m-rate argmap))
+             :bias (:bias ordering_with_bias)}))
+  (range (:population-size argmap))))
 
 
 (defn weighted-lexicase-selection
   "Selects an individual from the population using lexicase selection."
   [case_order pop]
-  (loop [survivors (map rand-nth (vals (group-by :errors pop)))
+  (loop [survivors (pmap rand-nth (vals (group-by :errors pop)))
          cases case_order
          evaluated_cases 1]
     (if (or (empty? cases)
             (empty? (rest survivors)))
-      {:parent (rand-nth survivors)
+       {:parent (rand-nth survivors)
         :bias evaluated_cases}
-      (let [min-err-for-case (apply min (map #(nth % (first cases))
-                                             (map :errors survivors)))]
+      (let [min-err-for-case (apply min (pmap #(nth % (first cases))
+                                             (pmap :errors survivors)))]
         (recur (filter #(= (nth (:errors %) (first cases)) min-err-for-case)
                        survivors)
                (rest cases)
