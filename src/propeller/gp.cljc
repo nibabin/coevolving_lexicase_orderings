@@ -57,7 +57,8 @@
             (prn {:success-generation generation
                   :program-executions program_executions
                   :genotypic-diversity genotypic_diversities
-                  :behavioral-diversity behavioral_diversities}))
+                  :behavioral-diversity behavioral_diversities
+                  :total-test-error (:total-error (error-function argmap (:testing-data argmap) best-individual))}))
             ;(prn {:total-test-error
             ;      (:total-error (error-function argmap (:testing-data argmap) best-individual))})
             ;(when (:simplification? argmap)
