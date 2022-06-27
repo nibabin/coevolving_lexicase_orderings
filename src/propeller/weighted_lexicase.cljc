@@ -31,17 +31,18 @@
   [case_order pop]
   (loop [survivors (pmap rand-nth (vals (group-by :errors pop)))
          cases case_order
-         evaluated_cases 1]
+         evaluations '()]
     (if (or (empty? cases)
             (empty? (rest survivors)))
        {:parent (rand-nth survivors)
-        :bias evaluated_cases}
+        :bias (count evaluations)
+        :evaluations evaluations}
       (let [min-err-for-case (apply min (pmap #(nth % (first cases))
                                              (pmap :errors survivors)))]
         (recur (filter #(= (nth (:errors %) (first cases)) min-err-for-case)
                        survivors)
                (rest cases)
-               (inc evaluated_cases))))))
+               (concat evaluations (map #(list (first cases) %) survivors)))))))
 
 (defn new-individual
   "Returns a new individual produced by selection and variation of
@@ -53,4 +54,5 @@
      :plushy (-> (:plushy (:parent plushy-with-bias))
                  (variation/uniform-addition (:instructions argmap) (:umad-rate argmap))
                  (variation/uniform-deletion (:umad-rate argmap)))
-     :bias (:bias plushy-with-bias)}))
+     :bias (:bias plushy-with-bias)
+     :evaluations (:evaluations plushy-with-bias)}))

@@ -14,22 +14,6 @@
             [propeller.push.instructions.vector]
             [propeller.weighted_lexicase :as weighted_lexicase]))
 
-(defn report
-  "Reports information each generation."
-  [pop generation argmap]
-  (let [best (first pop)]
-    (clojure.pprint/pprint {:generation            generation
-                            ;:best-plushy           (:plushy best)
-                            ;:best-program          (genome/plushy->push (:plushy best) argmap)
-                            :best-total-error      (:total-error best)
-                            ;:best-errors           (:errors best)
-                            ;:best-behaviors        (:behaviors best)
-                            :genotypic-diversity   (float (/ (count (distinct (map :plushy pop))) (count pop)))
-                            :behavioral-diversity  (float (/ (count (distinct (map :behaviors pop))) (count pop)))
-                            :average-genome-length (float (/ (reduce + (map count (map :plushy pop))) (count pop)))
-                            ;:average-total-error   (float (/ (reduce + (map :total-error pop)) (count pop)))
-                            })))
-
 (defn gp
   "Main GP loop."
   [{:keys [population-size max-generations error-function instructions
@@ -40,8 +24,8 @@
            mapper #?(:clj pmap :cljs map)}
     :as   argmap}]
   ;;
-  (prn {:starting-args (update (update argmap :error-function str) :instructions str)})
-  (println)
+  ;(prn {:starting-args (update (update argmap :error-function str) :instructions str)})
+  ;(println)
   ;;
   (loop [generation 0
          population (pmap
@@ -50,7 +34,10 @@
          orderings_population (pmap
                                 (fn [_] {:ordering (shuffle (range (count (:training-data argmap))))
                                          :bias 0})
-                                (range population-size))]
+                                (range population-size))
+         program_executions []
+         genotypic_diversities []
+         behavioral_diversities []]
 
     ;(clojure.pprint/pprint  (pr-str orderings_population))
     ;(clojure.pprint/pprint  (str orderings_population))
@@ -62,29 +49,41 @@
                                    (partial error-function argmap (:training-data argmap))
                                    population))
           best-individual (first evaluated-pop)]
-      (report evaluated-pop generation argmap)
+      ;(report evaluated-pop generation argmap)
       (cond
         ;; Success on training cases is verified on testing cases
         (<= (:total-error best-individual) solution-error-threshold)
-        (do (prn {:success-generation generation})
-            (prn {:total-test-error
-                  (:total-error (error-function argmap (:testing-data argmap) best-individual))})
-            (when (:simplification? argmap)
-              (let [simplified-plushy (simplification/auto-simplify-plushy (:plushy best-individual) error-function argmap)]
-                (prn {:total-test-error-simplified (:total-error (error-function argmap (:testing-data argmap) (hash-map :plushy simplified-plushy)))}))))
+        (do
+            (prn {:success-generation generation
+                  :program-executions program_executions
+                  :genotypic-diversity genotypic_diversities
+                  :behavioral-diversity behavioral_diversities}))
+            ;(prn {:total-test-error
+            ;      (:total-error (error-function argmap (:testing-data argmap) best-individual))})
+            ;(when (:simplification? argmap)
+            ;  (let [simplified-plushy (simplification/auto-simplify-plushy (:plushy best-individual) error-function argmap)]
+            ;    (prn {:total-test-error-simplified (:total-error (error-function argmap (:testing-data argmap) (hash-map :plushy simplified-plushy)))}))))
         ;;
         (>= generation max-generations)
-        nil
+            (prn {:success-generation -1
+                  :program-executions program_executions
+                  :genotypic-diversity  genotypic_diversities
+                  :behavioral-diversity  behavioral_diversities
+                  })
         ;;
         :else
-               (let [new-pop-with-bias (map #(propeller.weighted_lexicase/new-individual
-                                                                          (:ordering %)
+               (let [new-pop-with-bias (pmap #(propeller.weighted_lexicase/new-individual
+                                                                          (if (:fixed-orderings argmap)
+                                                                            (:ordering %)
+                                                                            (shuffle (range (count (:training-data argmap)))))
                                                                           evaluated-pop
                                                                           argmap)
                                                                       orderings_population)]
-                 (clojure.pprint/pprint "Average number of tests considered:") (println)
-                 (clojure.pprint/pprint (float (/ (apply + (map :bias new-pop-with-bias)) population-size)))
-                 (println)
                  (recur (inc generation)
                        (map (fn [ind] {:plushy (:plushy ind)}) new-pop-with-bias)
-                       (weighted_lexicase/evolve_orderings new-pop-with-bias argmap)))))))
+                        (if (:fixed-orderings argmap)
+                          (weighted_lexicase/evolve_orderings new-pop-with-bias argmap)
+                          orderings_population)
+                        (conj program_executions (count (distinct (reduce concat '() (map :evaluations new-pop-with-bias)))))
+                        (conj genotypic_diversities (float (/ (count (distinct (map :plushy evaluated-pop))) (count evaluated-pop))))
+                        (conj behavioral_diversities (float (/ (count (distinct (map :behaviors evaluated-pop))) (count evaluated-pop))))))))))
