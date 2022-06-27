@@ -6,7 +6,7 @@
 (defn average [coll]
   (float (/ (reduce + coll) (count coll))))
 
-(let [runs (map #(read-string (slurp (clojure.string/join "" ["/home/cbGST/runs/" folder "/run" % ".txt"]))) (range num_runs))
+(prn (let [runs (map #(read-string (slurp (clojure.string/join "" ["/home/cbGST/runs/" folder "/run" % ".txt"]))) (range num_runs))
       successful_runs (filter #(not (= -1 (:success-generation %))) runs)]
   {:successes (count successful_runs)
    :generalizations (count (filter #(= 0 (:total-test-error %)) successful_runs))
@@ -15,4 +15,4 @@
    :avg-generation (average (map :success-generation successful_runs))
    :avg-program-executions (average (map #(average (:program-executions %)) successful_runs))
    }
-  )
+  ))
