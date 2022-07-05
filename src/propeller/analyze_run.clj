@@ -10,8 +10,8 @@
                         (let [str (slurp (clojure.string/join "" ["/home/cbGST/runs/fuel_cost/" folder "/run" % ".txt"]))]
                           (if (or (empty? str) (not str))
                             ""
-                            str))
-                        (range num_runs)))
+                            str)))
+                        (range num_runs))
            successful_runs (filter #(not (= -1 (:success-generation %))) runs)]
        {:total (count runs)
         :successes (count successful_runs)
