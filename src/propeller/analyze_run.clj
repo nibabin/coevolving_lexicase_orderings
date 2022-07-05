@@ -1,13 +1,13 @@
 (ns propeller.analyze_run)
 
 (def num_runs 50)
-(def folder "no_coevolve")
+(def folder "fuel_cost/no_coevolve")
 
 (defn average [coll]
   (float (/ (reduce + coll) (count coll))))
 
-(prn (let [runs (filter #(not (nil? %)) (map #(let [str (slurp (clojure.string/join "" ["/home/cbGST/runs/fuel_cost/" folder "/run" % ".txt"]))]
-                          (if (= str "")
+(prn (let [runs (filter #(not (nil? %)) (map #(let [str (slurp (clojure.string/join "" ["/home/cbGST/runs/" folder "/run" % ".txt"]))]
+                          (if (or (= str "") (not= "{" (str (first str))))
                             nil
                             (do (pr str)
                                 (read-string str))))
