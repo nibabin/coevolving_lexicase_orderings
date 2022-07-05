@@ -7,7 +7,7 @@
   (float (/ (reduce + coll) (count coll))))
 
 (prn (let [runs (filter #(not (nil? %)) (map #(let [str (slurp (clojure.string/join "" ["/home/cbGST/runs/" folder "/run" % ".txt"]))]
-                          (if (or (= str "") (not= "{" (str (first str))))
+                          (if (or (= str "") (not= "{" (clojure.core/str (first str))))
                             nil
                             (do (pr str)
                                 (read-string str))))
