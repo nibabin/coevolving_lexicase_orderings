@@ -9,7 +9,8 @@
 (prn (let [runs (filter #(not (nil? %)) (map #(let [str (slurp (clojure.string/join "" ["/home/cbGST/runs/fuel_cost/" folder "/run" % ".txt"]))]
                           (if (= str "")
                             nil
-                            (read-string str)))
+                            (do (pr str)
+                                (read-string str))))
                         (range num_runs)))
            successful_runs (filter #(not (= -1 (:success-generation %))) runs)]
        {:total (count runs)
