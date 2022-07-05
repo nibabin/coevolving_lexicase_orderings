@@ -1,7 +1,7 @@
 (ns propeller.analyze_run)
 
 (def num_runs 50)
-(def folder "fuel_cost/no_coevolve")
+(def folder "paired_digits/coevolve")
 
 (defn average [coll]
   (float (/ (reduce + coll) (count coll))))
@@ -12,6 +12,7 @@
                             (read-string str)))
                         (range num_runs)))
            successful_runs (filter #(not (= -1 (:success-generation %))) runs)]
+       (prn (count successful_runs))
        {:total (count runs)
         :successes (count successful_runs)
         :generalizations (count (filter #(= 0 (:total-test-error %)) successful_runs))
