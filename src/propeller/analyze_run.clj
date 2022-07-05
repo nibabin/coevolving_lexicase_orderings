@@ -6,11 +6,11 @@
 (defn average [coll]
   (float (/ (reduce + coll) (count coll))))
 
-(prn (let [runs (map #(read-string
+(prn (let [runs (map #;(read-string
                         (let [str (slurp (clojure.string/join "" ["/home/cbGST/runs/fuel_cost/" folder "/run" % ".txt"]))]
                           (if (or (empty? str) (not str))
                             ""
-                            str)))
+                            str));)
                         (range num_runs))
            successful_runs (filter #(not (= -1 (:success-generation %))) runs)]
        {:total (count runs)
