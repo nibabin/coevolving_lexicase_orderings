@@ -17,7 +17,7 @@
 (defn gp
   "Main GP loop."
   [{:keys [population-size max-generations error-function instructions
-           max-initial-plushy-size solution-error-threshold mapper]
+           max-initial-plushy-size solution-error-threshold mapper max-executions]
     :or   {solution-error-threshold 0.0
            ;; The `mapper` will perform a `map`-like operation to apply a function to every individual
            ;; in the population. The default is `map` but other options include `mapv`, or `pmap`.
@@ -31,60 +31,71 @@
          population (pmap
                       (fn [_] {:plushy (genome/make-random-plushy instructions max-initial-plushy-size)})
                       (range population-size))
-         orderings_population (pmap
+         orderings_population (vec (pmap
                                 (fn [_] {:ordering (shuffle (range (count (:training-data argmap))))
                                          :bias 0})
-                                (range population-size))
+                                (range population-size)))
          program_executions []
-         genotypic_diversities []
-         behavioral_diversities []]
-
+         average-bias []
+         orderings-diversity []]
     ;(clojure.pprint/pprint  (pr-str orderings_population))
     ;(clojure.pprint/pprint  (str orderings_population))
     ;(clojure.pprint/pprint  (type orderings_population))
     ;(clojure.pprint/pprint  "hello")(flush)
     ;(println)
-    (let [evaluated-pop (sort-by :total-error
-                                 (pmap
-                                   (partial error-function argmap (:training-data argmap))
-                                   population))
-          best-individual (first evaluated-pop)]
       ;(report evaluated-pop generation argmap)
-      (cond
+   ; (println program_executions)(flush)
+   ; (println (apply + program_executions))
+    (cond
         ;; Success on training cases is verified on testing cases
-        (<= (:total-error best-individual) solution-error-threshold)
-        (do
-            (prn {:success-generation generation
-                  :program-executions program_executions
-                  :genotypic-diversity genotypic_diversities
-                  :behavioral-diversity behavioral_diversities
-                  :total-test-error (:total-error (error-function argmap (:testing-data argmap) best-individual))}))
+        ;(<= (:total-error best-individual) solution-error-threshold)
+        ;(do
+        ;    (prn {:success-generation generation
+        ;          :program-executions program_executions
+        ;          :total-test-error (:total-error (error-function argmap (:testing-data argmap) best-individual))}))
             ;(prn {:total-test-error
             ;      (:total-error (error-function argmap (:testing-data argmap) best-individual))})
             ;(when (:simplification? argmap)
             ;  (let [simplified-plushy (simplification/auto-simplify-plushy (:plushy best-individual) error-function argmap)]
             ;    (prn {:total-test-error-simplified (:total-error (error-function argmap (:testing-data argmap) (hash-map :plushy simplified-plushy)))}))))
         ;;
-        (>= generation max-generations)
-            (prn {:success-generation -1
-                  :program-executions program_executions
-                  :genotypic-diversity  genotypic_diversities
-                  :behavioral-diversity  behavioral_diversities
-                  })
+        (>= (apply + program_executions) max-executions)
+          (let [evaluated-pop (sort-by :total-error
+                                       (pmap
+                                         (partial error-function argmap (:training-data argmap))
+                                         population))
+                best-individual (first evaluated-pop)]
+            (if (<= (:total-error best-individual) solution-error-threshold)
+              (prn {:success-generation generation
+                        :program-executions program_executions
+                        :total-test-error (:total-error (error-function argmap (:testing-data argmap) best-individual))
+                        :average-bias average-bias
+                        :orderings-diversity orderings-diversity})
+              (prn {:failed-generation generation
+                    :program-executions program_executions
+                    :total-test-error (:total-error (error-function argmap (:testing-data argmap) best-individual))
+                    :average-bias average-bias
+                    :orderings-diversity orderings-diversity})))
         ;;
         :else
-               (let [new-pop-with-bias (pmap #(propeller.weighted_lexicase/new-individual
-                                                                          (if (:fixed-orderings argmap)
+               (let [dynamic-errors (atom {})
+                     new-pop-with-bias (doall (pmap #(propeller.weighted_lexicase/new-individual
+                                                                      (if (:fixed-orderings argmap)
                                                                             (:ordering %)
                                                                             (shuffle (range (count (:training-data argmap)))))
-                                                                          evaluated-pop
+                                                                          population
+                                                                          dynamic-errors
                                                                           argmap)
-                                                                      orderings_population)]
+                                                                      orderings_population))
+                     executions (count @dynamic-errors)]
+                 ;(println generation (count @dynamic-errors))
+                 ;(println (count new-pop-with-bias))
+                 (reset! dynamic-errors nil)
                  (recur (inc generation)
-                       (map (fn [ind] {:plushy (:plushy ind)}) new-pop-with-bias)
-                        (if (:fixed-orderings argmap)
-                          (weighted_lexicase/evolve_orderings new-pop-with-bias argmap)
-                          orderings_population)
-                        (conj program_executions (count (distinct (reduce concat '() (map :evaluations new-pop-with-bias)))))
-                        (conj genotypic_diversities (float (/ (count (distinct (map :plushy evaluated-pop))) (count evaluated-pop))))
-                        (conj behavioral_diversities (float (/ (count (distinct (map :behaviors evaluated-pop))) (count evaluated-pop))))))))))
+                        (map (fn [ind] {:plushy (:plushy ind)}) new-pop-with-bias)
+                          (if (:fixed-orderings argmap)
+                            (weighted_lexicase/evolve_orderings new-pop-with-bias argmap)
+                            orderings_population)
+                        (conj program_executions executions)
+                        (conj average-bias (float (/ (apply + (map :bias new-pop-with-bias)) population-size)))
+                        (conj orderings-diversity (float (/ (count (distinct orderings_population)) population-size))))))))
