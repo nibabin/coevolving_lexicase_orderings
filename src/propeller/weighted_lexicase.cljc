@@ -9,8 +9,8 @@
 (defn compute-error
   ([argmap individual test-index]
    (let [program (genome/plushy->push (:plushy individual) argmap)
-         input (first (:input1 (nth (:training-data argmap) test-index)))
-         correct-output (first (:output1 (nth (:training-data argmap) test-index)))
+         input (:input1 (nth (:training-data argmap) test-index))
+         correct-output (:output1 (nth (:training-data argmap) test-index))
          output (state/peek-stack
                   (interpreter/interpret-program
                     program
@@ -36,8 +36,6 @@
                (swap order i (int (Math/floor (rand (count order)))))
                order)
              (inc i)))))
-
-(mutate-ordering [1 2 3 4 5] 0.2)
 
 (defn select-ordering
   [pop argmap]
