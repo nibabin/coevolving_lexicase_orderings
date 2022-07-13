@@ -4,6 +4,7 @@
             [propeller.push.interpreter :as interpreter]
             [propeller.push.state :as state]
             [propeller.tools.math :as math]
+            [propeller.tools.metrics :as metrics]
             [clojure.pprint]))
 
 (defn compute-error
@@ -16,10 +17,10 @@
                     program
                     (assoc state/empty-state :input {:in1 input})
                     (:step-limit argmap))
-                  :integer)
+                  :string)
          error (if (= output :no-stack-item)
-                   1000000
-                   (math/abs (- correct-output output)))]
+                    10000
+                   (metrics/levenshtein-distance correct-output output))]
      ;(println (:plushy individual))
      error)))
 
