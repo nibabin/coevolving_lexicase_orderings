@@ -14,10 +14,13 @@
             [propeller.push.instructions.vector]
             [propeller.weighted_lexicase :as weighted_lexicase]))
 
+(defn average [coll]
+  (float (/ (reduce + coll) (count coll))))
+
 (defn gp
   "Main GP loop."
   [{:keys [population-size max-generations error-function instructions
-           max-initial-plushy-size solution-error-threshold mapper max-executions]
+           max-initial-plushy-size solution-error-threshold mapper max-executions num-orderings]
     :or   {solution-error-threshold 0.0
            ;; The `mapper` will perform a `map`-like operation to apply a function to every individual
            ;; in the population. The default is `map` but other options include `mapv`, or `pmap`.
@@ -34,7 +37,9 @@
          orderings_population (vec (pmap
                                 (fn [_] {:ordering (shuffle (range (count (:training-data argmap))))
                                          :bias 0})
-                                (range population-size)))
+                                (range (if (nil? num-orderings)
+                                    population-size
+                                    num-orderings))))
          program_executions []
          average-bias []
          orderings-diversity []]
@@ -79,23 +84,35 @@
         ;;
         :else
                (let [dynamic-errors (atom {})
+                     cohort-size (if (nil? num-orderings) nil (/ population-size num-orderings))
                      new-pop-with-bias (doall (pmap #(propeller.weighted_lexicase/new-individual
                                                                       (if (:fixed-orderings argmap)
-                                                                            (:ordering %)
+                                                                            (if (nil? num-orderings)
+                                                                                (:ordering (nth orderings_population %))
+                                                                                (propeller.weighted_lexicase/generate-ordering (:ordering (nth orderings_population (/ % cohort-size)))))
                                                                             (shuffle (range (count (:training-data argmap)))))
                                                                           population
                                                                           dynamic-errors
                                                                           argmap)
-                                                                      orderings_population))
-                     executions (count @dynamic-errors)]
+                                                                        (range population-size)))
+                     executions (count @dynamic-errors)
+                     orderings-with-bias (if (nil? num-orderings)
+                                             nil
+                                             (doall (pmap (fn [idx] {:bias (average (map :bias (subvec (vec new-pop-with-bias) (* cohort-size idx) (* cohort-size (inc idx)))))
+                                                                     :ordering (:ordering (nth orderings_population idx))})
+                                                          (range num-orderings))))]
                  ;(println generation (count @dynamic-errors))
                  ;(println (count new-pop-with-bias))
                  (reset! dynamic-errors nil)
+                 (println orderings_population)
                  (recur (inc generation)
                         (map (fn [ind] {:plushy (:plushy ind)}) new-pop-with-bias)
                           (if (:fixed-orderings argmap)
-                            (weighted_lexicase/evolve_orderings new-pop-with-bias argmap)
+                            (weighted_lexicase/evolve_orderings (if (nil? num-orderings)
+                                                                    new-pop-with-bias
+                                                                    orderings-with-bias)
+                                                                argmap)
                             orderings_population)
                         (conj program_executions executions)
                         (conj average-bias (float (/ (apply + (map :bias new-pop-with-bias)) population-size)))
-                        (conj orderings-diversity (float (/ (count (distinct orderings_population)) population-size))))))))
+                        (conj orderings-diversity (float (/ (count (distinct (map :ordering orderings_population))) (count orderings_population)))))))))

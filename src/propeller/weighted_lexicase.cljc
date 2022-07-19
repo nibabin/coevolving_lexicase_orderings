@@ -51,7 +51,9 @@
   (fn [_] (let [ordering_with_bias (select-ordering pop argmap)]
             {:ordering (mutate-ordering (:ordering ordering_with_bias) (:ordering-m-rate argmap))
              :bias (:bias ordering_with_bias)}))
-  (range (:population-size argmap))))
+  (range (count pop))))
+
+
 
 
 (defn weighted-lexicase-selection
@@ -92,3 +94,15 @@
                  (variation/uniform-addition (:instructions argmap) (:umad-rate argmap))
                  (variation/uniform-deletion (:umad-rate argmap)))
      :bias (:bias plushy-with-bias)}))
+
+(defn generate-ordering
+  [ranking]
+  (loop [ordering []
+         cases (vec ranking)]
+    (if (= (count ordering) (count ranking))
+        ordering
+        (let [index (rand (rand (count cases)))]
+          (recur (conj ordering (nth cases index))
+                 (if (= index (dec (count cases)))
+                   (subvec cases 0 index)
+                   (vec (concat (subvec cases 0 index) (subvec cases (inc index) (count cases))))))))))
