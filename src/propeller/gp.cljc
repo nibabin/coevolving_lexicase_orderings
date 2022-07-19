@@ -104,7 +104,6 @@
                  ;(println generation (count @dynamic-errors))
                  ;(println (count new-pop-with-bias))
                  (reset! dynamic-errors nil)
-                 (println orderings_population)
                  (recur (inc generation)
                         (map (fn [ind] {:plushy (:plushy ind)}) new-pop-with-bias)
                           (if (:fixed-orderings argmap)
