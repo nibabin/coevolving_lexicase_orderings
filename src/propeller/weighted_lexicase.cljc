@@ -87,7 +87,7 @@
        (let [min-err-for-case (apply min (map (fn [individual]
                                                  (if (contains? @errors (seq [individual (first cases)]))
                                                     (get @errors (seq [individual (first cases)]))
-                                                    (let [error-value (compute-error-simplereg argmap (nth pop individual) (first cases))]
+                                                    (let [error-value (compute-error-fizzbuzz argmap (nth pop individual) (first cases))]
                                                       ;(println (first cases))
                                                       (swap! errors #(assoc % (seq [individual (first cases)]) error-value))
                                                       error-value)))
