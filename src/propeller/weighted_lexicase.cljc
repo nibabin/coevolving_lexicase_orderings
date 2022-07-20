@@ -7,7 +7,7 @@
             [propeller.tools.metrics :as metrics]
             [clojure.pprint]))
 
-(defn compute-error
+(defn compute-error-fizzbuzz
   ([argmap individual test-index]
    (let [program (genome/plushy->push (:plushy individual) argmap)
          input (:input1 (nth (:training-data argmap) test-index))
@@ -23,6 +23,24 @@
                    (metrics/levenshtein-distance correct-output output))]
      ;(println (:plushy individual))
      error)))
+
+(defn compute-error-simplereg
+  ([argmap individual test-index]
+   (let [program (genome/plushy->push (:plushy individual) argmap)
+         input (:input1 (nth (:training-data argmap) test-index))
+         correct-output (:output1 (nth (:training-data argmap) test-index))
+         output (state/peek-stack
+                  (interpreter/interpret-program
+                    program
+                    (assoc state/empty-state :input {:in1 input})
+                    (:step-limit argmap))
+                  :string)
+         error (if (= output :no-stack-item)
+                 1000000
+                 (math/abs (- correct-output output)))]
+     ;(println (:plushy individual))
+     error)))
+
 
 (defn swap [v i1 i2]
   (assoc v i2 (v i1) i1 (v i2)))
@@ -69,7 +87,7 @@
        (let [min-err-for-case (apply min (map (fn [individual]
                                                  (if (contains? @errors (seq [individual (first cases)]))
                                                     (get @errors (seq [individual (first cases)]))
-                                                    (let [error-value (compute-error argmap (nth pop individual) (first cases))]
+                                                    (let [error-value (compute-error-simplereg argmap (nth pop individual) (first cases))]
                                                       ;(println (first cases))
                                                       (swap! errors #(assoc % (seq [individual (first cases)]) error-value))
                                                       error-value)))
