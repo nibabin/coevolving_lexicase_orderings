@@ -34,7 +34,7 @@
                     program
                     (assoc state/empty-state :input {:in1 input})
                     (:step-limit argmap))
-                  :string)
+                  :integer)
          error (if (= output :no-stack-item)
                  1000000
                  (math/abs (- correct-output output)))]
