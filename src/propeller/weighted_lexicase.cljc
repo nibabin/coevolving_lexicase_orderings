@@ -27,8 +27,8 @@
 (defn compute-error-simplereg
   ([argmap individual test-index]
    (let [program (genome/plushy->push (:plushy individual) argmap)
-         input (:input1 (nth (:training-data argmap) test-index))
-         correct-output (:output1 (nth (:training-data argmap) test-index))
+         input (first (:input1 (nth (:training-data argmap) test-index)))
+         correct-output (first (:output1 (nth (:training-data argmap) test-index)))
          output (state/peek-stack
                   (interpreter/interpret-program
                     program
